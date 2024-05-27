@@ -14,7 +14,7 @@ interface PollOptionsProps {
   options: Option[];
 }
 
-const socket = io("http://localhost:8080");
+// const socket = io("http://localhost:8080");
 
 export default function PollOptions({ pollId, options }: PollOptionsProps) {
   const { hasVoted, setHasVoted } = useHasVoted(pollId);
@@ -24,28 +24,31 @@ export default function PollOptions({ pollId, options }: PollOptionsProps) {
     options.reduce((acc, option) => ({ ...acc, [option.id]: option.votes }), {})
   );
 
-  const totalVotes = options.reduce((total, option) => total + option.votes, 0);
+  const totalVotes = Object.entries(optionVotes).reduce(
+    (total, [option_id, votes]) => total + votes,
+    0
+  );
 
   const [isVoting, setIsVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    socket.on(
-      "update-votes",
-      (updatedPollId: number, optionId: number, votes: number) => {
-        if (updatedPollId === pollId) {
-          setOptionVotes((prevOptionVotes) => ({
-            ...prevOptionVotes,
-            [optionId]: votes,
-          }));
-        }
-      }
-    );
+  // useEffect(() => {
+  //   socket.on(
+  //     "update-votes",
+  //     (updatedPollId: number, optionId: number, votes: number) => {
+  //       if (updatedPollId === pollId) {
+  //         setOptionVotes((prevOptionVotes) => ({
+  //           ...prevOptionVotes,
+  //           [optionId]: votes,
+  //         }));
+  //       }
+  //     }
+  //   );
 
-    return () => {
-      socket.off("update-votes");
-    };
-  }, [pollId]);
+  //   return () => {
+  //     socket.off("update-votes");
+  //   };
+  // }, [pollId]);
 
   const handleVote = async (optionId: number) => {
     if (hasVoted) {
@@ -55,6 +58,12 @@ export default function PollOptions({ pollId, options }: PollOptionsProps) {
 
     setIsVoting(true);
     try {
+      // socket.emit("vote", pollId, optionId, optionVotes[optionId] + 1);
+      await axios.post(`/api/poll/${pollId}/vote`, { optionId });
+    } catch (error) {
+      setError("Failed to vote. Please try again.");
+      console.error("Error voting:", error);
+    } finally {
       const updatedOptionVotes = {
         ...optionVotes,
         [optionId]: optionVotes[optionId] + 1,
@@ -62,12 +71,6 @@ export default function PollOptions({ pollId, options }: PollOptionsProps) {
       setHasVoted(true);
       localStorage.setItem(`voted_${pollId}`, "true");
       setOptionVotes(updatedOptionVotes);
-      socket.emit("vote", pollId, optionId, optionVotes[optionId] + 1);
-      await axios.post(`/api/poll/${pollId}/vote`, { optionId });
-    } catch (error) {
-      setError("Failed to vote. Please try again.");
-      console.error("Error voting:", error);
-    } finally {
       setIsVoting(false);
     }
   };

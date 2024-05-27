@@ -1,11 +1,18 @@
 import { PrismaClient } from "@prisma/client";
+import { hash } from "bcrypt";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const password = await hash("test", 12);
+
   // Create a user
   const user = await prisma.user.create({
-    data: { name: "Vaibhav" },
+    data: {
+      email: "example@example.com",
+      name: "Vaibhav",
+      password: password,
+    },
   });
 
   // Create a poll with reference to the created user
@@ -28,7 +35,7 @@ async function main() {
     },
   });
 
-  console.log("User created:", user);
+  console.log("Deleted user:", user);
   console.log("Poll created with options:", poll);
 }
 
